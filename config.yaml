@@ -1,0 +1,19 @@
+cities:
+  - name: Bangalore
+    districtId:
+    - 265
+    - 276
+    - 294
+    channels:
+    - minAge:
+      - 18
+      channelNname: vax-notifier [u45 - BLR]
+      chatId: "@vaxu45blr"
+  - name: Ernakulam
+    districtId:
+    - 307
+    channels:
+    - minAge:
+      - 18
+      channelNname: vax-notifier [u45 - EKM]
+      chatId: "@vaxu45ekm"
