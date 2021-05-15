@@ -136,7 +136,7 @@ func findAvailableSlots(districtIds []int) []common.Center {
 		var availableSessions []*common.Session = []*common.Session{}
 		for j := 0; j < len(centers[i].Sessions); j++ {
 			session := centers[i].Sessions[j]
-			if session.Available_capacity == 0 && session.Min_age_limit == 18 {
+			if session.Available_capacity > 0 && session.Min_age_limit == 18 {
 				availableSessions = append(availableSessions, session)
 			}
 		}
