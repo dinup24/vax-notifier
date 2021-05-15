@@ -25,8 +25,32 @@ docker build -t dinup24/vax-notifier .
 cat > env.list <<EOL
 TELEGRAM_TOKEN=<token>
 CONFIG_FILE=config.yaml
-TELEGRAM_STATS_GROUP=<chat-id>
+STATS_TELEGRAM_GROUP=<chat-id>
+POLLING_INTERVAL_MS=6000
 EOL
 
 docker run -d --env-file env.list dinup24/vax-notifier
+```
+
+Deploy with a custom config file
+```
+cities:
+  - name: Bangalore
+    districtId:
+    - 265
+    - 276
+    - 294
+    channels:
+    - minAge:
+      - 18
+      channelNname: vax-notifier [u45 - BLR]
+      chatId: "@vaxu45blr"
+  - name: Ernakulam
+    districtId:
+    - 307
+    channels:
+    - minAge:
+      - 18
+      channelNname: vax-notifier [u45 - EKM]
+      chatId: "@vaxu45ekm"
 ```
