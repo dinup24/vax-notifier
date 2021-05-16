@@ -54,12 +54,14 @@ func (c Center) String() string {
 }
 
 type Session struct {
-	Session_id         string   `json:"session_id"`
-	Date               string   `json:"date"`
-	Available_capacity int      `json:"available_capacity"`
-	Min_age_limit      int      `json:"min_age_limit"`
-	Vaccine            string   `json:"vaccine"`
-	Slots              []string `json:"slots"`
+	Session_id               string   `json:"session_id"`
+	Date                     string   `json:"date"`
+	Available_capacity       int      `json:"available_capacity"`
+	Available_capacity_dose1 int      `json:"available_capacity_dose1"`
+	Available_capacity_dose2 int      `json:"available_capacity_dose2"`
+	Min_age_limit            int      `json:"min_age_limit"`
+	Vaccine                  string   `json:"vaccine"`
+	Slots                    []string `json:"slots"`
 }
 
 func (s Session) String() string {

@@ -43,8 +43,8 @@ func (t *TelegramBot) PublishAvailableCenters(availableCenters []common.Center, 
 
 		//log.Info("$$$$", currentTime, lastTime, ok)
 
-		// publish only if the center was not published with 10m
-		if !ok || (ok && currentTime.Sub(lastTime) > 10*time.Minute) {
+		// publish only if the center was not published with 30m
+		if !ok || (ok && currentTime.Sub(lastTime) > 30*time.Minute) {
 			str += strconv.Itoa(i+1) + ". " + availableCenters[i].String() + "\n"
 
 			// collect all the centers
