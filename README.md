@@ -26,7 +26,7 @@ cat > env.list <<EOL
 TELEGRAM_TOKEN=<token>
 CONFIG_FILE=config.yaml
 STATS_TELEGRAM_GROUP=<chat-id>
-POLLING_INTERVAL_MS=6000
+POLLING_INTERVAL=60s
 EOL
 
 docker run -d --env-file env.list dinup24/vax-notifier
