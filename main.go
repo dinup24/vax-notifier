@@ -55,27 +55,31 @@ func main() {
 		log.Warn("telegramStatsGroup name not passed")
 	}
 
-	pollingInterval := time.Duration(60000)
-	pollingIntervalStr := os.Getenv("POLLING_INTERVAL_MS")
-	if len(pollingIntervalStr) != 0 {
-		pollingInterval, _ = time.ParseDuration(pollingIntervalStr + "ms")
+	pollingIntervalStr := os.Getenv("POLLING_INTERVAL")
+	if len(pollingIntervalStr) == 0 {
+		pollingIntervalStr = "60s"
 	}
+	pollingInterval, _ := time.ParseDuration(pollingIntervalStr)
 	log.Info("pollingInterval: ", pollingInterval)
 
 	for i := 0; i < len(cfg["cities"]); i++ {
 		go func(city common.City) {
 			for i := 0; i >= 0; i++ { // infinite loop
-				log.Info("Check for City " + city.Name + " #" + strconv.Itoa(i))
+				log.Info("Check for City " + city.Name + " #" + strconv.Itoa(i+1))
 
 				availableCenters := findAvailableSlots(city.DistrictId)
 
 				if len(availableCenters) > 0 {
 					pubr.PublishAvailableCenters(availableCenters, city.Channels)
-					stats.LastPublishTime = time.Now()
 				}
 
 				stats.CheckCount += 1
-				time.Sleep(pollingInterval)
+
+				if city.PollingInterval > 0 {
+					time.Sleep(city.PollingInterval)
+				} else {
+					time.Sleep(pollingInterval)
+				}
 			}
 		}(cfg["cities"][i])
 	}
@@ -84,6 +88,9 @@ func main() {
 		if len(telegramStatsGroup) > 0 {
 			pubr.Publish(stats, telegramStatsGroup)
 		}
+
+		log.Info("Tracker", common.Tracker)
+
 		time.Sleep(300 * time.Second)
 	}
 }
@@ -111,16 +118,15 @@ func findAvailableSlots(districtIds []int) []common.Center {
 			log.Fatalln(err)
 		}
 
-		log.Info(res.Body)
+		log.Debug(res.Body)
 
 		body, err := io.ReadAll(res.Body)
 		if err != nil {
 			log.Fatalln(err)
 		}
 
-		log.Info(string(body))
+		log.Debug(string(body))
 
-		//var data map[string]interface{}
 		var data map[string][]common.Center
 		err = json.Unmarshal(body, &data)
 		if err != nil {
@@ -146,7 +152,6 @@ func findAvailableSlots(districtIds []int) []common.Center {
 			availableCenters = append(availableCenters, centers[i])
 		}
 	}
-
 	return availableCenters
 }
 

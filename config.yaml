@@ -4,6 +4,7 @@ cities:
     - 265
     - 276
     - 294
+    pollingInterval: 120s
     channels:
     - minAge:
       - 18
@@ -12,8 +13,18 @@ cities:
   - name: Ernakulam
     districtId:
     - 307
+    pollingInterval: 10s
     channels:
     - minAge:
       - 18
       channelNname: vax-notifier [u45 - EKM]
       chatId: "@vaxu45ekm"
+  - name: Thiruvananthapuram
+    districtId:
+    - 296
+    pollingInterval: 60s
+    channels:
+    - minAge:
+      - 18
+      channelNname: vax-notifier [u45 - TVM]
+      chatId: "@vaxu45tvm"

@@ -6,9 +6,10 @@ import (
 )
 
 type City struct {
-	Name       string     `yaml:"name"`
-	DistrictId []int      `yaml:"districtId"`
-	Channels   []*Channel `yaml:"channels"`
+	Name            string        `yaml:"name"`
+	DistrictId      []int         `yaml:"districtId"`
+	PollingInterval time.Duration `yaml:"pollingInterval"`
+	Channels        []*Channel    `yaml:"channels"`
 }
 
 type Channel struct {
@@ -18,9 +19,8 @@ type Channel struct {
 }
 
 type Stats struct {
-	CheckingSince   string
-	CheckCount      int
-	LastPublishTime time.Time
+	CheckingSince string
+	CheckCount    int
 }
 
 func (s Stats) String() string {
@@ -65,6 +65,8 @@ type Session struct {
 func (s Session) String() string {
 	return formatDate(s.Date) + ": *" + strconv.Itoa(s.Available_capacity) + "* slots  " + s.Vaccine + " "
 }
+
+var Tracker map[string]time.Time = map[string]time.Time{}
 
 func formatDate(date string) string {
 	t, _ := time.Parse("2-01-2006", date)
