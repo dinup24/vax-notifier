@@ -145,7 +145,7 @@ func findAvailableSlots(districtIds []int) []common.Center {
 
 			//log.Info(centers[i].District_name, session.Available_capacity, session.Available_capacity_dose1, session.Available_capacity_dose2, session.Min_age_limit)
 
-			if session.Available_capacity > 0 && (session.Available_capacity_dose1 > 0 || session.Available_capacity_dose2 > 0) && session.Min_age_limit == 18 {
+			if session.Available_capacity == 0 && (session.Available_capacity_dose1 == 0 || session.Available_capacity_dose2 == 0) && session.Min_age_limit == 18 {
 				availableSessions = append(availableSessions, session)
 			}
 		}

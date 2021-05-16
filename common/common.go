@@ -65,7 +65,7 @@ type Session struct {
 }
 
 func (s Session) String() string {
-	return formatDate(s.Date) + ": *" + strconv.Itoa(s.Available_capacity) + "* slots  " + s.Vaccine + " "
+	return formatDate(s.Date) + ": *" + strconv.Itoa(s.Available_capacity) + "* slots  " + s.Vaccine + " (Dose 1: " + strconv.Itoa(s.Available_capacity_dose1) + ", Dose 2: " + strconv.Itoa(s.Available_capacity_dose2) + ")"
 }
 
 var Tracker map[string]time.Time = map[string]time.Time{}

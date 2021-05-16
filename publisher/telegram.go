@@ -59,6 +59,8 @@ func (t *TelegramBot) PublishAvailableCenters(availableCenters []common.Center, 
 	if len(str) > 0 {
 		str = strings.Replace(str, ".", "\\.", -1)
 		str = strings.Replace(str, "-", "\\-", -1)
+		str = strings.Replace(str, "(", "\\(", -1)
+		str = strings.Replace(str, ")", "\\)", -1)
 
 		msg := url.QueryEscape(str)
 
