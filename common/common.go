@@ -1,8 +1,13 @@
 package common
 
 import (
+	"fmt"
+	"io/ioutil"
 	"strconv"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+	yaml "gopkg.in/yaml.v3"
 )
 
 type City struct {
@@ -65,12 +70,145 @@ type Session struct {
 }
 
 func (s Session) String() string {
-	return formatDate(s.Date) + ": *" + strconv.Itoa(s.Available_capacity) + "* slots  " + s.Vaccine + " (Dose 1: " + strconv.Itoa(s.Available_capacity_dose1) + ", Dose 2: " + strconv.Itoa(s.Available_capacity_dose2) + ")"
+	return formatDate(s.Date) + ": *" + strconv.Itoa(s.Available_capacity) + "* slots " + s.Vaccine + " (Dose 1: " + strconv.Itoa(s.Available_capacity_dose1) + ", Dose 2: " + strconv.Itoa(s.Available_capacity_dose2) + ")"
 }
 
-var Tracker map[string]time.Time = map[string]time.Time{}
+var Tracker map[string]*TrackerData = map[string]*TrackerData{}
+
+type TrackerData struct {
+	Session         *Session
+	LastCheckTime   time.Time
+	LastPublishTime time.Time
+}
+
+func (td TrackerData) String() string {
+	return strconv.Itoa(td.Session.Available_capacity) + "-" + td.LastCheckTime.String() + "-" + td.LastPublishTime.String()
+}
 
 func formatDate(date string) string {
 	t, _ := time.Parse("2-01-2006", date)
 	return t.Format("Jan 2, 2006")
+}
+
+func GetTrackerKey(center Center, session *Session) string {
+	return strconv.Itoa(center.Center_id) + ":" + strconv.Itoa(center.Pincode) + ":" + session.Date + ":" + session.Vaccine + ":" + strconv.Itoa(session.Min_age_limit)
+}
+
+func UpdateTracker(center Center, session *Session, forceUpdate bool) bool {
+	trackerKey := GetTrackerKey(center, session)
+	currentTime := time.Now()
+
+	// Update tracker with latest session, only if the tracker is tracking the session
+	// Keeping the session upto date will help us publish more accurate data
+	td := Tracker[trackerKey]
+
+	// session is tracked
+	if td != nil {
+		td.Session = session
+		td.LastCheckTime = currentTime
+		return true
+	}
+
+	// session is not tracked, but update
+	if forceUpdate {
+		Tracker[trackerKey] = &TrackerData{
+			Session:       session,
+			LastCheckTime: currentTime,
+		}
+		return true
+	}
+	return false
+}
+
+// To be invoked only for available sessions
+func CheckSessionAgainstTracker(center Center, session *Session, publishInterval time.Duration) bool {
+	currentTime := time.Now()
+	trackerKey := GetTrackerKey(center, session)
+
+	td := Tracker[trackerKey]
+
+	// Session not found in tracker -> first publish
+	if td == nil {
+		// td = &TrackerData{
+		// 	Session:         *session,
+		// 	LastCheckTime:   currentTime,
+		// 	LastPublishTime: currentTime,
+		// }
+
+		//Tracker[trackerKey] = td
+
+		log.WithFields(
+			log.Fields{
+				"trackerKey":  trackerKey,
+				"capacity":    session.Available_capacity,
+				"currentTime": currentTime,
+			},
+		).Info("Session was not found in tracker -> Qualified Session")
+
+		return true
+	}
+
+	/*
+	 * Session found in tracker, but available capacity is higher -> more vaccine doses added; publish
+	 * Session found in tracker, but published long ago -> publish again
+	 */
+	if (td.Session.Available_capacity < session.Available_capacity) || (currentTime.Sub(td.LastPublishTime) > publishInterval) {
+		//td.Session = *session
+		//td.LastCheckTime = currentTime
+		//td.LastPublishTime = currentTime
+
+		log.WithFields(
+			log.Fields{
+				"trackerKey":      trackerKey,
+				"newCapacity":     session.Available_capacity,
+				"oldCapacity":     td.Session.Available_capacity,
+				"lastPublishTime": td.LastPublishTime,
+				"currentTime":     currentTime,
+			},
+		).Info("Session found; but higher capacity found or published long ago -> Qualified Session")
+
+		return true
+	}
+
+	log.WithFields(
+		log.Fields{
+			"trackerKey":      trackerKey,
+			"newCapacity":     session.Available_capacity,
+			"oldCapacity":     td.Session.Available_capacity,
+			"lastPublishTime": td.LastPublishTime,
+			"currentTime":     currentTime,
+		},
+	).Info("Session found; equal/lower capcity and published recently  -> Non Qualified Session")
+
+	//td.Session = *session
+	//td.LastCheckTime = currentTime
+
+	return false
+}
+
+func ReadConf(filename string) (map[string][]City, error) {
+	buf, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var cfg map[string][]City
+	err = yaml.Unmarshal(buf, &cfg)
+	if err != nil {
+		return nil, fmt.Errorf("in file %q: %v", filename, err)
+	}
+
+	return cfg, nil
+}
+
+func UpdateTrackerforPublished(publishedCenter Center) {
+	currentTime := time.Now()
+
+	for i := 0; i < len(publishedCenter.Sessions); i++ {
+		trackerKey := GetTrackerKey(publishedCenter, publishedCenter.Sessions[i])
+
+		td, _ := Tracker[trackerKey]
+
+		td.LastPublishTime = currentTime
+	}
 }

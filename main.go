@@ -2,24 +2,20 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
-
-	yaml "gopkg.in/yaml.v3"
 
 	"github.com/dinup24/vax-notifier/common"
 	"github.com/dinup24/vax-notifier/publisher"
 	log "github.com/sirupsen/logrus"
 )
 
-var telegramToken string
 var telegramStatsGroup string
 var stats common.Stats
+var publishInterval time.Duration
 
 func main() {
 
@@ -47,7 +43,7 @@ func main() {
 		panic("configFile name not passed")
 	}
 	log.Info("configFile: ", configFile)
-	cfg, _ := readConf(configFile)
+	cfg, _ := common.ReadConf(configFile)
 	log.Info(cfg)
 
 	telegramStatsGroup = os.Getenv("STATS_TELEGRAM_GROUP")
@@ -61,6 +57,13 @@ func main() {
 	}
 	pollingInterval, _ := time.ParseDuration(pollingIntervalStr)
 	log.Info("pollingInterval: ", pollingInterval)
+
+	publishIntervalStr := os.Getenv("PUBLISH_INTERVAL")
+	if len(publishIntervalStr) == 0 {
+		publishIntervalStr = "12h"
+	}
+	publishInterval, _ = time.ParseDuration(publishIntervalStr)
+	log.Info("publishInterval: ", publishInterval)
 
 	for i := 0; i < len(cfg["cities"]); i++ {
 		go func(city common.City) {
@@ -89,7 +92,7 @@ func main() {
 			pubr.Publish(stats, telegramStatsGroup)
 		}
 
-		log.Info("Tracker", common.Tracker)
+		log.Info("Tracker: ", common.Tracker)
 
 		time.Sleep(300 * time.Second)
 	}
@@ -140,35 +143,42 @@ func findAvailableSlots(districtIds []int) []common.Center {
 
 	for i := 0; i < len(centers); i++ {
 		var availableSessions []*common.Session = []*common.Session{}
+		//var qualifiedSessions []*common.Session = []*common.Session{}
+		centerQualified := false
+
 		for j := 0; j < len(centers[i].Sessions); j++ {
 			session := centers[i].Sessions[j]
 
 			//log.Info(centers[i].District_name, session.Available_capacity, session.Available_capacity_dose1, session.Available_capacity_dose2, session.Min_age_limit)
 
+			//if session.Available_capacity == 0 && (session.Available_capacity_dose1 == 0 || session.Available_capacity_dose2 == 0) && session.Min_age_limit == 18 {
 			if session.Available_capacity > 0 && (session.Available_capacity_dose1 > 0 || session.Available_capacity_dose2 > 0) && session.Min_age_limit == 18 {
+				// Update the list of all available sessions
 				availableSessions = append(availableSessions, session)
+
+				// If the center is yet to be qualified, perform the checks
+				if !centerQualified {
+					ok := common.CheckSessionAgainstTracker(centers[i], session, publishInterval)
+
+					// If a session becomes eligible, the center get qualified for publish
+					if ok {
+						centerQualified = true
+					}
+				}
+				ok := common.UpdateTracker(centers[i], session, true)
+				log.Info("available -> tracker updated: ", ok)
+			} else {
+				// Update the tracker with the latest session (if tracker has the object)
+				_ = common.UpdateTracker(centers[i], session, false)
+				//log.Info("unavailable -> tracker updated: ", ok)
 			}
 		}
 
-		if len(availableSessions) > 0 {
+		// If a center is qualified, all available sessions will be published
+		if centerQualified {
 			centers[i].Sessions = availableSessions
 			availableCenters = append(availableCenters, centers[i])
 		}
 	}
 	return availableCenters
-}
-
-func readConf(filename string) (map[string][]common.City, error) {
-	buf, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	var cfg map[string][]common.City
-	err = yaml.Unmarshal(buf, &cfg)
-	if err != nil {
-		return nil, fmt.Errorf("in file %q: %v", filename, err)
-	}
-
-	return cfg, nil
 }
