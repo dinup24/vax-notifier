@@ -186,7 +186,7 @@ func CheckSessionAgainstTracker(center Center, session *Session, publishInterval
 	 * Session found in tracker, but available capacity is higher -> more vaccine doses added; publish
 	 * Session found in tracker, but published long ago -> publish again
 	 */
-	if (td.Session.Available_capacity < session.Available_capacity) || (currentTime.Sub(td.LastPublishTime) > publishInterval) {
+	if (td.Session.Available_capacity+5 < session.Available_capacity) || (currentTime.Sub(td.LastPublishTime) > publishInterval) {
 		//td.Session = *session
 		//td.LastCheckTime = currentTime
 		//td.LastPublishTime = currentTime
