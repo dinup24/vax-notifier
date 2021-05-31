@@ -26,6 +26,7 @@ func (t *TelegramBot) Init() {
 }
 
 func (t *TelegramBot) PublishAvailableCenters(availableCenters []common.Center, channels []*common.Channel) error {
+	defer common.RecoverFromPanic()
 	client := &http.Client{}
 	var str string
 
@@ -51,7 +52,7 @@ func (t *TelegramBot) PublishAvailableCenters(availableCenters []common.Center, 
 			}
 			res, err := client.Do(req)
 			if err != nil {
-				log.Fatalln(err)
+				panic(err)
 			}
 
 			log.Debug(res)
@@ -70,7 +71,8 @@ func (t *TelegramBot) PublishAvailableCenters(availableCenters []common.Center, 
 }
 
 func (t *TelegramBot) Publish(msg interface{}, chatId string) error {
-	msgStr := url.QueryEscape(msg.(common.Stats).String())
+	defer common.RecoverFromPanic()
+	msgStr := url.QueryEscape(msg.(*common.Stats).String())
 
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s&parse_mode=MarkdownV2", t.telegramToken, chatId, msgStr)
 	log.Info("url: ", url)
@@ -82,7 +84,7 @@ func (t *TelegramBot) Publish(msg interface{}, chatId string) error {
 	}
 	res, err := client.Do(req)
 	if err != nil {
-		log.Fatalln(err)
+		panic(err)
 	}
 
 	log.Info(res)

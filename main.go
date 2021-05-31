@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 )
 
 var telegramStatsGroup string
-var stats common.Stats
 var publishInterval time.Duration
 
 func main() {
@@ -31,8 +31,13 @@ func main() {
 	log.Info("Vax Notifier application has started sucessfully...")
 
 	currentTime := time.Now()
-	stats = common.Stats{}
-	stats.CheckingSince = currentTime.Format("Jan 2, 2006 15:04:05")
+	common.St.CheckingSince = currentTime.Format("Jan 2, 2006 15:04:05")
+
+	// router := mux.NewRouter()
+	// router.HandleFunc("/sms", handleSms).Methods(http.MethodGet)
+	// http.ListenAndServe(":9001", router)
+
+	// time.Sleep(8000 * time.Second)
 
 	// Initialize
 	pubr := publisher.GetPublisher()
@@ -76,7 +81,7 @@ func main() {
 					pubr.PublishAvailableCenters(availableCenters, city.Channels)
 				}
 
-				stats.CheckCount += 1
+				common.St.AddCheckCount()
 
 				if city.PollingInterval > 0 {
 					time.Sleep(city.PollingInterval)
@@ -89,16 +94,18 @@ func main() {
 
 	for {
 		if len(telegramStatsGroup) > 0 {
-			pubr.Publish(stats, telegramStatsGroup)
+			pubr.Publish(common.St, telegramStatsGroup)
 		}
 
-		log.Info("Tracker: ", common.Tracker)
+		//log.Info("Tracker: ", common.Tracker)
 
 		time.Sleep(300 * time.Second)
 	}
 }
 
 func findAvailableSlots(districtIds []int) []common.Center {
+	defer common.RecoverFromPanic()
+
 	currentTime := time.Now()
 	date := currentTime.Format("2-01-2006")
 
@@ -108,7 +115,7 @@ func findAvailableSlots(districtIds []int) []common.Center {
 	centers := []common.Center{}
 
 	for k := 0; k < len(districtIds); k++ {
-		url := "https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/calendarByDistrict?district_id=" + strconv.Itoa(districtIds[k]) + "&date=" + date
+		url := "https://cdn-api.co-vin.in/api/v2/appointment/sessions/calendarByDistrict?district_id=" + strconv.Itoa(districtIds[k]) + "&date=" + date
 		log.Info("url: ", url)
 
 		req, err := http.NewRequest("GET", url, nil)
@@ -118,24 +125,35 @@ func findAvailableSlots(districtIds []int) []common.Center {
 		}
 		res, err := client.Do(req)
 		if err != nil {
-			log.Fatalln(err)
+			panic(err)
 		}
 
-		log.Debug(res.Body)
+		log.WithFields(
+			log.Fields{
+				"responseCode": res.Status,
+			},
+		).Info("Response for " + strconv.Itoa(districtIds[k]))
 
-		body, err := io.ReadAll(res.Body)
-		if err != nil {
-			log.Fatalln(err)
+		if res.StatusCode < 400 {
+			common.St.AddGoodResponse()
+			log.Debug(res.Body)
+
+			body, err := io.ReadAll(res.Body)
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			log.Debug(string(body))
+
+			var data map[string][]common.Center
+			err = json.Unmarshal(body, &data)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			centers = append(centers, data["centers"]...)
+		} else {
+			common.St.AddBadResponse()
 		}
-
-		log.Debug(string(body))
-
-		var data map[string][]common.Center
-		err = json.Unmarshal(body, &data)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		centers = append(centers, data["centers"]...)
 	}
 
 	// Collect all available centers here...
@@ -181,4 +199,24 @@ func findAvailableSlots(districtIds []int) []common.Center {
 		}
 	}
 	return availableCenters
+}
+
+func handleSms(w http.ResponseWriter, r *http.Request) {
+	otpMsg := r.URL.Query().Get("msg")
+
+	log.Info("otpMsg: ", otpMsg)
+
+	regex, _ := regexp.Compile(".*(OTP).*([0-9]{6}).*([0-9]{1})\\s(minutes).*")
+
+	sub := regex.FindStringSubmatch(otpMsg)
+
+	if sub != nil && len(sub) > 0 {
+		opt := sub[2]
+		log.Info("opt: ", opt)
+
+		common.Opt = opt
+		common.OptTime = time.Now()
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

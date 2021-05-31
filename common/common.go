@@ -4,11 +4,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strconv"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v3"
 )
+
+var Opt string
+var OptTime time.Time
+
+var St *Stats = &Stats{}
 
 type City struct {
 	Name            string        `yaml:"name"`
@@ -24,12 +30,40 @@ type Channel struct {
 }
 
 type Stats struct {
-	CheckingSince string
-	CheckCount    int
+	CheckingSince   string
+	CheckCount      int
+	GoodApiResponse int
+	BadApiResponse  int
+	PanicCount      int
+	sync.Mutex
 }
 
-func (s Stats) String() string {
-	return "Checking since: " + s.CheckingSince + "\n" + "Check count: " + strconv.Itoa(s.CheckCount)
+func (s *Stats) AddGoodResponse() {
+	s.Lock()
+	defer s.Unlock()
+	s.GoodApiResponse++
+}
+
+func (s *Stats) AddBadResponse() {
+	s.Lock()
+	defer s.Unlock()
+	s.BadApiResponse++
+}
+
+func (s *Stats) AddCheckCount() {
+	s.Lock()
+	defer s.Unlock()
+	s.CheckCount++
+}
+
+func (s *Stats) AddPanicCount() {
+	s.Lock()
+	defer s.Unlock()
+	s.PanicCount++
+}
+
+func (s *Stats) String() string {
+	return "Checking since: " + s.CheckingSince + "\n" + "Check count: " + strconv.Itoa(s.CheckCount) + "\n" + "Good api response: " + strconv.Itoa(s.GoodApiResponse) + "\n" + "Bad api response: " + strconv.Itoa(s.BadApiResponse) + "\n" + "Panic count: " + strconv.Itoa(s.PanicCount)
 }
 
 type Center struct {
@@ -210,5 +244,16 @@ func UpdateTrackerforPublished(publishedCenter Center) {
 		td, _ := Tracker[trackerKey]
 
 		td.LastPublishTime = currentTime
+	}
+}
+
+func GetToken() string {
+	return ""
+}
+
+func RecoverFromPanic() {
+	if r := recover(); r != nil {
+		log.Info("Recovering from panic ", r)
+		St.AddPanicCount()
 	}
 }
